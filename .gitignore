@@ -2,6 +2,7 @@
 builds/
 .runtime_validation/
 android/build/
+android/.build_version
 *.keystore
 *.jks
 secrets/

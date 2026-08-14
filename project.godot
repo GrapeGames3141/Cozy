@@ -1,0 +1,39 @@
+; Cozy Fall TV MVP — Godot 4.7.1 Compatibility
+config_version=5
+
+[application]
+config/name="Cozy Fall"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://assets/icon.svg"
+
+[display]
+
+[display/window]
+size/viewport_width=1920
+size/viewport_height=1080
+size/window_width_override=1920
+size/window_height_override=1080
+stretch/mode="canvas_items"
+handheld/orientation=0
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+textures/vram_compression/import_etc2_astc=true
+
+[input]
+ui_accept={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":4194309), Object(InputEventKey,"physical_keycode":32)]
+}
+ui_cancel={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":4194305), Object(InputEventKey,"physical_keycode":4194308)]
+}
+
+[android]
+package/unique_name="com.holly.cozyfall"
+orientation=0
+package/show_in_android_tv=true

@@ -1,0 +1,7 @@
+.godot/
+builds/
+.runtime_validation/
+android/build/
+*.keystore
+*.jks
+secrets/

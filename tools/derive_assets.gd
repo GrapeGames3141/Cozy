@@ -41,15 +41,83 @@ func derive_decor() -> void:
 
 func derive_visitors() -> void:
 	var source := load_source("cozyfall_visitors_magenta_original.png")
-	for row in 2:
-		for col in 3:
-			var index := row * 3 + col
-			var x0 := col * 512
-			var y0 := row * 512
-			var cut := source.get_region(Rect2i(x0, y0, 512, 512))
-			remove_magenta(cut)
-			keep_primary_component(cut)
-			trim_alpha(cut, 12).save_png("res://assets/visitors/%02d_%s.png" % [index + 1, VISITOR_NAMES[index]])
+	# Fox's tail crosses the nominal rabbit/fox cell boundary. The wider source
+	# rect preserves it; primary-component filtering removes any rabbit fragment.
+	var rects := [Rect2i(0, 0, 512, 512), Rect2i(512, 0, 512, 512), Rect2i(896, 0, 640, 512), Rect2i(0, 512, 512, 512), Rect2i(512, 512, 512, 512), Rect2i(1024, 512, 512, 512)]
+	var folder := DirAccess.open("res://assets/visitors")
+	# Frame-B raw inputs are immutable retained sources; both runtime poses are
+	# regenerated together below by this canonical derivation script.
+	for index in VISITOR_NAMES.size():
+		var base_name := "%02d_%s.png" % [index + 1, VISITOR_NAMES[index]]
+		folder.remove(base_name)
+		folder.remove(base_name + ".import")
+	for index in rects.size():
+		var cut := source.get_region(rects[index])
+		remove_magenta(cut)
+		keep_primary_component(cut)
+		trim_alpha(cut, 12, true).save_png("res://assets/visitors/%02d_%s.png" % [index + 1, VISITOR_NAMES[index]])
+	derive_walk_b_frames()
+
+func derive_walk_b_frames() -> void:
+	# Raw imagegen edits are immutable retained inputs. Normalize each B pose to
+	# its freshly derived A canvas and foot baseline in this canonical pipeline.
+	for index in VISITOR_NAMES.size():
+		var name := "%02d_%s" % [index + 1, VISITOR_NAMES[index]]
+		var a := Image.load_from_file("res://assets/visitors/%s.png" % name)
+		var b := Image.load_from_file("res://source_assets/generated/visitor_walk_b_raw/%s_walk_b_raw.png" % name)
+		assert(not a.is_empty() and not b.is_empty(), "Missing paired visitor source: " + name)
+		a.convert(Image.FORMAT_RGBA8)
+		remove_walk_b_magenta(b)
+		var a_bounds := alpha_bounds(a)
+		var b_bounds := alpha_bounds(b)
+		var subject := b.get_region(b_bounds)
+		var height_scale := float(a_bounds.size.y) / float(b_bounds.size.y)
+		var normalized_size := Vector2i(maxi(1, roundi(float(b_bounds.size.x) * height_scale)), a_bounds.size.y)
+		subject.resize(normalized_size.x, normalized_size.y, Image.INTERPOLATE_LANCZOS)
+		var output := Image.create(a.get_width(), a.get_height(), false, Image.FORMAT_RGBA8)
+		output.fill(Color(0, 0, 0, 0))
+		var destination := Vector2i(clampi(roundi(a_bounds.get_center().x - normalized_size.x * 0.5), 4, a.get_width() - normalized_size.x - 4), a_bounds.end.y - normalized_size.y)
+		output.blit_rect(subject, Rect2i(Vector2i.ZERO, subject.get_size()), destination)
+		despill_walk_b_output(output)
+		output.save_png("res://assets/visitors/%s_walk_b.png" % name)
+
+func alpha_bounds(image: Image) -> Rect2i:
+	var min_x := image.get_width(); var min_y := image.get_height(); var max_x := -1; var max_y := -1
+	for y in image.get_height():
+		for x in image.get_width():
+			if image.get_pixel(x, y).a > 0.04:
+				min_x = mini(min_x, x); min_y = mini(min_y, y); max_x = maxi(max_x, x); max_y = maxi(max_y, y)
+	assert(max_x >= 0, "walk frame has no visible subject")
+	return Rect2i(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1)
+
+func remove_walk_b_magenta(image: Image) -> void:
+	image.convert(Image.FORMAT_RGBA8)
+	for y in image.get_height():
+		for x in image.get_width():
+			var pixel := image.get_pixel(x, y)
+			var spill := maxf(0.0, minf(pixel.r, pixel.b) - pixel.g)
+			var alpha := clampf(1.0 - spill, 0.0, 1.0)
+			if alpha <= 0.03:
+				image.set_pixel(x, y, Color(0, 0, 0, 0))
+			elif alpha < 0.995:
+				var recovered := Color(clampf((pixel.r - (1.0 - alpha)) / alpha, 0.0, 1.0), clampf(pixel.g / alpha, 0.0, 1.0), clampf((pixel.b - (1.0 - alpha)) / alpha, 0.0, 1.0), alpha)
+				var residual := maxf(0.0, minf(recovered.r, recovered.b) - recovered.g)
+				if residual > 0.0:
+					recovered.r = maxf(0.0, recovered.r - residual)
+					recovered.b = maxf(0.0, recovered.b - residual)
+				image.set_pixel(x, y, recovered)
+
+func despill_walk_b_output(image: Image) -> void:
+	for y in image.get_height():
+		for x in image.get_width():
+			var pixel := image.get_pixel(x, y)
+			if pixel.a <= 0.25:
+				image.set_pixel(x, y, Color(0, 0, 0, 0))
+				continue
+			if pixel.a < 0.98 and minf(pixel.r, pixel.b) - pixel.g > 0.0:
+				pixel.r = minf(pixel.r, pixel.g + 0.02)
+				pixel.b = minf(pixel.b, pixel.g + 0.02)
+				image.set_pixel(x, y, pixel)
 
 func remove_magenta(image: Image) -> void:
 	image.convert(Image.FORMAT_RGBA8)
@@ -101,7 +169,7 @@ func keep_primary_component(image: Image) -> void:
 				var color: Color = image.get_pixel(x, y)
 				image.set_pixel(x, y, Color(color.r, color.g, color.b, 0.0))
 
-func trim_alpha(image: Image, padding: int) -> Image:
+func trim_alpha(image: Image, padding: int, force_outer_gutter: bool = false) -> Image:
 	image.convert(Image.FORMAT_RGBA8)
 	var min_x := image.get_width()
 	var min_y := image.get_height()
@@ -116,4 +184,11 @@ func trim_alpha(image: Image, padding: int) -> Image:
 		return image
 	min_x = maxi(0, min_x - padding); min_y = maxi(0, min_y - padding)
 	max_x = mini(image.get_width() - 1, max_x + padding); max_y = mini(image.get_height() - 1, max_y + padding)
-	return image.get_region(Rect2i(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1))
+	var cropped := image.get_region(Rect2i(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1))
+	if not force_outer_gutter: return cropped
+	# Visitor-only: retain a real transparent gutter even if a source-rect edge
+	# touched the silhouette. Decor keeps its original deterministic dimensions.
+	var output := Image.create(cropped.get_width() + padding * 2, cropped.get_height() + padding * 2, false, Image.FORMAT_RGBA8)
+	output.fill(Color(0, 0, 0, 0))
+	output.blit_rect(cropped, Rect2i(Vector2i.ZERO, cropped.get_size()), Vector2i(padding, padding))
+	return output

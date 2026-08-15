@@ -3,8 +3,8 @@ extends Node2D
 const PlacementLogicRef = preload("res://scripts/core/placement_logic.gd")
 const SaveDataRef = preload("res://scripts/core/save_data.gd")
 const VisitorSchedulerRef = preload("res://scripts/core/visitor_scheduler.gd")
-const VISITOR_ENTRY_ANCHORS := {"right_path": Vector2(2040, 820), "left_yard": Vector2(-100, 835), "far_path": Vector2(1060, 460), "porch_steps": Vector2(1480, 680)}
-const VISITOR_INTERACTION_ANCHORS := {"bird_feeder": Vector2(1240, 790), "orange_mums": Vector2(1050, 770), "lantern": Vector2(790, 630), "apple_basket": Vector2(900, 690), "rocking_chair": Vector2(690, 575), "plaid_blanket": Vector2(850, 635)}
+const VisitorMotionRef = preload("res://scripts/visitors/visitor_motion.gd")
+const VisitorActorRef = preload("res://scripts/visitors/visitor_actor.gd")
 const DECOR := [
 	{"id":"pumpkin_cluster","name":"Pumpkin Cluster","category":"Harvest","zones":["porch","yard"],"footprint":Vector2i(2,2),"tags":["pumpkin","warm"]},
 	{"id":"single_pumpkin","name":"Single Pumpkin","category":"Harvest","zones":["porch","yard"],"footprint":Vector2i(1,1),"tags":["pumpkin"]},
@@ -54,6 +54,8 @@ var next_visit := 5.0
 var elapsed := 0.0
 var leaves := []
 var capture_requested := false
+var capture_visitor_id := "squirrel"
+var capture_wait_seconds := 5.0
 
 func _ready() -> void:
 	set_process(true)
@@ -64,9 +66,15 @@ func _ready() -> void:
 	scheduler = VisitorSchedulerRef.new()
 	build_world()
 	build_ui()
-	if OS.get_cmdline_args().has("--capture") or OS.get_cmdline_user_args().has("--capture"): capture_requested = true
+	var capture_args := OS.get_cmdline_args() + OS.get_cmdline_user_args()
+	if capture_args.has("--capture"):
+		capture_requested = true
+		next_visit = INF
+		for argument in capture_args:
+			if argument.begins_with("--capture-visitor="): capture_visitor_id = argument.trim_prefix("--capture-visitor=")
+			if argument.begins_with("--capture-delay="): capture_wait_seconds = maxf(0.1, argument.trim_prefix("--capture-delay=").to_float())
 	set_ambient(ambient)
-	if capture_requested: call_deferred("capture_preview")
+	if capture_requested: call_deferred("spawn_capture_visitor"); call_deferred("capture_preview")
 
 func build_world() -> void:
 	var background := Sprite2D.new()
@@ -257,9 +265,15 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func capture_preview() -> void:
+	# Let the deterministic visitor complete its supported inbound walk before the capture.
+	await get_tree().create_timer(capture_wait_seconds).timeout
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var image: Image = get_viewport().get_texture().get_image()
+	if image == null:
+		push_error("Runtime capture requires a GPU viewport; no image was returned.")
+		get_tree().quit(1)
+		return
 	image.save_png("res://previews/runtime_capture_%dx%d.png" % [get_viewport().size.x, get_viewport().size.y])
 	capture_requested = false
 	get_tree().quit()
@@ -274,13 +288,31 @@ func spawn_visitor() -> void:
 			if not tags.has(tag): tags.append(tag)
 	var visitor: Dictionary = scheduler.choose(tags, elapsed)
 	if visitor.is_empty(): return
+	spawn_visitor_definition(visitor)
+
+func spawn_capture_visitor() -> void:
+	# Captures always show a complete, grounded visitor rather than an offscreen entry.
+	for definition in scheduler.definitions:
+		if definition.id == capture_visitor_id: spawn_visitor_definition(definition); return
+	spawn_visitor_definition(scheduler.definitions[0])
+
+func spawn_visitor_definition(visitor: Dictionary) -> void:
 	var idx := ["squirrel","rabbit","fox","raccoon","black_cat","white_maltipoo"].find(visitor.id) + 1
-	var sprite := Sprite2D.new(); sprite.texture = load("res://assets/visitors/%02d_%s.png" % [idx, visitor.id]); sprite.scale = Vector2.ONE * (float(visitor.display_height) / sprite.texture.get_size().y); sprite.position = VISITOR_ENTRY_ANCHORS[visitor.entry]; sprite.z_index = 1000; visitor_layer.add_child(sprite)
-	var target: Vector2 = VISITOR_INTERACTION_ANCHORS[visitor.interaction]
-	var tween := create_tween(); tween.tween_property(sprite, "position", target, 5.0).set_trans(Tween.TRANS_SINE)
-	var base_scale := sprite.scale
-	var bob := create_tween(); bob.set_loops(6); bob.tween_property(sprite, "scale", base_scale * Vector2(1.07, 0.94), 0.7); bob.tween_property(sprite, "scale", base_scale, 0.7)
-	tween.tween_interval(2.0); tween.tween_property(sprite, "position", VISITOR_ENTRY_ANCHORS[visitor.entry], 4.0); tween.tween_callback(func(): scheduler.leave(visitor.id); sprite.queue_free())
+	var texture: Texture2D = load("res://assets/visitors/%02d_%s.png" % [idx, visitor.id])
+	var walk_texture: Texture2D = load("res://assets/visitors/%02d_%s_walk_b.png" % [idx, visitor.id])
+	var actor: Node2D = VisitorActorRef.new(); actor.setup(texture, walk_texture, float(visitor.display_height)); actor.z_index = 1000; visitor_layer.add_child(actor)
+	var rendered_width := texture.get_size().x * float(visitor.display_height) / texture.get_size().y
+	var inbound := VisitorMotionRef.inbound_path(visitor, rendered_width)
+	var outbound := VisitorMotionRef.outbound_path(visitor, rendered_width)
+	var phase := 0
+	actor.route_finished.connect(func():
+		if phase == 0:
+			phase = 1
+			get_tree().create_timer(2.0).timeout.connect(func(): actor.play_path(outbound))
+		else:
+			scheduler.leave(visitor.id)
+			actor.queue_free())
+	actor.play_path(inbound)
 	status_label.text = "%s came by to admire the %s." % [visitor.id.replace("_", " ").capitalize(), visitor.interaction.replace("_", " ")]
 
 func _draw() -> void:

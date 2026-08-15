@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://5bvx6fvhi6qm"
-path="res://.godot/imported/06_white_maltipoo.png-337b4f2743e3e955a680f897c023f9c5.ctex"
+uid="uid://bq5b2brptl3qy"
+path="res://.godot/imported/01_squirrel_walk_b_raw.png-d7f45c77dcb3d16bc39e12b8392fab47.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/visitors/06_white_maltipoo.png"
-dest_files=["res://.godot/imported/06_white_maltipoo.png-337b4f2743e3e955a680f897c023f9c5.ctex"]
+source_file="res://source_assets/generated/visitor_walk_b_raw/01_squirrel_walk_b_raw.png"
+dest_files=["res://.godot/imported/01_squirrel_walk_b_raw.png-d7f45c77dcb3d16bc39e12b8392fab47.ctex"]
 
 [params]
 

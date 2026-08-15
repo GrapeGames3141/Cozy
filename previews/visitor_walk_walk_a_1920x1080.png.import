@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://5bvx6fvhi6qm"
-path="res://.godot/imported/06_white_maltipoo.png-337b4f2743e3e955a680f897c023f9c5.ctex"
+uid="uid://d27p0blg4mbn7"
+path="res://.godot/imported/visitor_walk_walk_a_1920x1080.png-0e0bb77a9b70aa1b278950ea0dc07a0c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/visitors/06_white_maltipoo.png"
-dest_files=["res://.godot/imported/06_white_maltipoo.png-337b4f2743e3e955a680f897c023f9c5.ctex"]
+source_file="res://previews/visitor_walk_walk_a_1920x1080.png"
+dest_files=["res://.godot/imported/visitor_walk_walk_a_1920x1080.png-0e0bb77a9b70aa1b278950ea0dc07a0c.ctex"]
 
 [params]
 

@@ -7,12 +7,12 @@ var rng := RandomNumberGenerator.new()
 var active: Array[String] = []
 var last_seen := {}
 var definitions := [
-	{"id":"squirrel", "weight": 4.0, "tags":["bird", "nuts"], "entry":"right_path", "interaction":"bird_feeder", "display_height":100.0},
-	{"id":"rabbit", "weight": 3.0, "tags":["flowers", "garden"], "entry":"left_yard", "interaction":"orange_mums", "display_height":125.0},
-	{"id":"fox", "weight": 2.0, "tags":["lantern", "harvest"], "entry":"far_path", "interaction":"lantern", "display_height":170.0},
-	{"id":"raccoon", "weight": 2.0, "tags":["pumpkin", "apple"], "entry":"porch_steps", "interaction":"apple_basket", "display_height":145.0},
-	{"id":"black_cat", "weight": 3.0, "tags":["chair", "warm"], "entry":"porch_steps", "interaction":"rocking_chair", "display_height":125.0},
-	{"id":"white_maltipoo", "weight": 3.0, "tags":["blanket", "pillows", "welcome"], "entry":"left_yard", "interaction":"plaid_blanket", "display_height":120.0},
+	{"id":"squirrel", "weight":4.0, "tags":["bird", "nuts"], "entry_side":"right", "surface":"yard", "interaction":"bird_feeder", "display_height":100.0},
+	{"id":"rabbit", "weight":3.0, "tags":["flowers", "garden"], "entry_side":"left", "surface":"yard", "interaction":"orange_mums", "display_height":125.0},
+	{"id":"fox", "weight":2.0, "tags":["lantern", "harvest"], "entry_side":"right", "surface":"porch", "interaction":"lantern", "display_height":170.0},
+	{"id":"raccoon", "weight":2.0, "tags":["pumpkin", "apple"], "entry_side":"right", "surface":"porch", "interaction":"apple_basket", "display_height":145.0},
+	{"id":"black_cat", "weight":3.0, "tags":["chair", "warm"], "entry_side":"left", "surface":"porch", "interaction":"rocking_chair", "display_height":125.0},
+	{"id":"white_maltipoo", "weight":3.0, "tags":["blanket", "pillows", "welcome"], "entry_side":"left", "surface":"porch", "interaction":"plaid_blanket", "display_height":120.0},
 ]
 
 func _init(seed: int = 0) -> void:

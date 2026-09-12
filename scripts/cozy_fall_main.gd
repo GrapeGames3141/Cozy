@@ -5,6 +5,7 @@ const SaveDataRef = preload("res://scripts/core/save_data.gd")
 const VisitorSchedulerRef = preload("res://scripts/core/visitor_scheduler.gd")
 const VisitorMotionRef = preload("res://scripts/visitors/visitor_motion.gd")
 const VisitorActorRef = preload("res://scripts/visitors/visitor_actor.gd")
+const BASE_BOTTOM_MARGIN := 48
 const DECOR := [
 	{"id":"pumpkin_cluster","name":"Pumpkin Cluster","category":"Harvest","zones":["porch","yard"],"footprint":Vector2i(2,2),"tags":["pumpkin","warm"]},
 	{"id":"single_pumpkin","name":"Single Pumpkin","category":"Harvest","zones":["porch","yard"],"footprint":Vector2i(1,1),"tags":["pumpkin"]},
@@ -35,6 +36,8 @@ var placement: Dictionary = {}
 var selected_index := -1
 var ambient := false
 var ui: CanvasLayer
+var safe_margin: MarginContainer
+var _ad_bar: Node
 var inventory: VBoxContainer
 var context_menu: HBoxContainer
 var status_label: Label
@@ -91,10 +94,16 @@ func build_world() -> void:
 
 func build_ui() -> void:
 	ui = CanvasLayer.new(); add_child(ui)
-	var safe := MarginContainer.new(); safe.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	safe.add_theme_constant_override("margin_left", 72); safe.add_theme_constant_override("margin_right", 72)
-	safe.add_theme_constant_override("margin_top", 48); safe.add_theme_constant_override("margin_bottom", 48); ui.add_child(safe)
-	var root := VBoxContainer.new(); root.add_theme_constant_override("separation", 14); safe.add_child(root)
+	safe_margin = MarginContainer.new(); safe_margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	safe_margin.add_theme_constant_override("margin_left", 72); safe_margin.add_theme_constant_override("margin_right", 72)
+	safe_margin.add_theme_constant_override("margin_top", 48); ui.add_child(safe_margin)
+	var ad_bar := ad_bar_service()
+	if ad_bar != null:
+		apply_banner_height(ad_bar.banner_height())
+		ad_bar.banner_height_changed.connect(apply_banner_height)
+	else:
+		apply_banner_height(0.0)
+	var root := VBoxContainer.new(); root.add_theme_constant_override("separation", 14); safe_margin.add_child(root)
 	title_label = Label.new(); title_label.text = "COZY FALL"; title_label.add_theme_font_size_override("font_size", 44); title_label.add_theme_color_override("font_color", Color("fff1cf")); root.add_child(title_label)
 	status_label = Label.new(); status_label.text = "Arrange the porch, invite a little wonder."; status_label.add_theme_font_size_override("font_size", 25); status_label.add_theme_color_override("font_color", Color("f9d997")); root.add_child(status_label)
 	var controls := HBoxContainer.new(); controls.add_theme_constant_override("separation", 18); root.add_child(controls)
@@ -109,6 +118,21 @@ func build_ui() -> void:
 		var button: Button = make_button(action[0], action[1]); context_buttons.append(button); context_menu.add_child(button)
 	rebuild_inventory()
 	call_deferred("focus_initial_control")
+
+## The AdBarService autoload, or null. Headless tool/test runs start without
+## autoloads, so the scene must stay usable when the ad bar is absent.
+func ad_bar_service() -> Node:
+	if is_instance_valid(_ad_bar): return _ad_bar
+	var tree := get_tree()
+	if tree != null and tree.root != null and tree.root.has_node("AdBarService"):
+		_ad_bar = tree.root.get_node("AdBarService")
+	return _ad_bar
+
+## Keeps the bottom row of chrome clear of the AdMob banner. Returns to the
+## plain TV safe-area inset whenever the bar is absent or suppressed.
+func apply_banner_height(height: float) -> void:
+	if not is_instance_valid(safe_margin): return
+	safe_margin.add_theme_constant_override("margin_bottom", BASE_BOTTOM_MARGIN + int(roundf(maxf(0.0, height))))
 
 func focus_initial_control() -> void:
 	if not inventory_buttons.is_empty(): inventory_buttons[0].grab_focus()
@@ -249,6 +273,8 @@ func add_decor_sprite(record: Dictionary) -> void:
 
 func set_ambient(value: bool) -> void:
 	ambient = value; mode = "ambient" if value else "inventory"; ui.visible = not value; DisplayServer.screen_set_keep_on(value)
+	var ad_bar := ad_bar_service()
+	if ad_bar != null: ad_bar.set_suppressed(value)
 	if not value: status_label.text = "Welcome back to decorating."; call_deferred("focus_initial_control"); update_legend()
 	queue_redraw()
 

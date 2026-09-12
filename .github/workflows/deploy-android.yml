@@ -1,0 +1,162 @@
+name: Deploy Cozy Fall Android - Internal Test
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: "4.7.1"
+  GODOT_CHANNEL: stable
+  PACKAGE_NAME: com.holly.cozyfall
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Cache Godot import cache
+        uses: actions/cache@v4
+        with:
+          path: .godot
+          key: godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ hashFiles('**/*.import', 'assets/**', 'project.godot', 'export_presets.cfg') }}
+          restore-keys: |
+            godot-import-${{ runner.os }}-${{ env.GODOT_VERSION }}-
+
+      - name: Cache Android build template
+        uses: actions/cache@v4
+        with:
+          path: android/build
+          key: android-build-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ hashFiles('android/.build_version') }}
+          restore-keys: |
+            android-build-${{ runner.os }}-${{ env.GODOT_VERSION }}-
+
+      - name: Cache Gradle (Android export)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ hashFiles('android/.build_version', 'export_presets.cfg') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Cache AdMob Android binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/cozyfall/admob
+          key: admob-android-${{ env.GODOT_VERSION }}-v5.0.0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Android SDK
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME}"
+          SDKMANAGER=""
+          for candidate in \
+            "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "$SDK_ROOT"/cmdline-tools/*/bin/sdkmanager; do
+            if [[ -x "$candidate" ]]; then
+              SDKMANAGER="$candidate"
+              break
+            fi
+          done
+          if [[ -z "$SDKMANAGER" ]]; then
+            echo "Installing Android cmdline-tools..."
+            mkdir -p "$SDK_ROOT/cmdline-tools"
+            curl -fsSL -o /tmp/android-cmdline-tools.zip \
+              "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
+            unzip -qo /tmp/android-cmdline-tools.zip -d /tmp/android-cmdline-tools
+            rm -rf "$SDK_ROOT/cmdline-tools/latest"
+            mv /tmp/android-cmdline-tools/cmdline-tools "$SDK_ROOT/cmdline-tools/latest"
+            SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          set +o pipefail
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null 2>&1 || true
+          set -o pipefail
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "ndk;23.2.8568313" \
+            "cmake;3.10.2.4988404"
+
+      - name: Install Godot export tooling
+        run: |
+          chmod +x scripts/ci/godot-export-android.sh
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Decode release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.android"
+          if [[ -z "${ANDROID_KEYSTORE_BASE64}" ]]; then
+            echo "ANDROID_KEYSTORE_BASE64 secret is empty" >&2
+            exit 1
+          fi
+          # Strip whitespace/newlines that break decode when pasted in the UI
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '\r\n\t ' | base64 --decode > "$HOME/.android/release.keystore"
+          ks_size="$(wc -c < "$HOME/.android/release.keystore" | tr -d ' ')"
+          echo "Decoded keystore bytes: ${ks_size}"
+          if [[ "${ks_size}" -lt 100 ]]; then
+            echo "Decoded keystore is too small — ANDROID_KEYSTORE_BASE64 is probably truncated or not base64" >&2
+            exit 1
+          fi
+          if [[ -z "${KEY_ALIAS}" || -z "${KEYSTORE_PASSWORD}" ]]; then
+            echo "KEY_ALIAS or KEYSTORE_PASSWORD secret is empty" >&2
+            exit 1
+          fi
+          keytool -list -keystore "$HOME/.android/release.keystore" \
+            -alias "$KEY_ALIAS" \
+            -storepass "$KEYSTORE_PASSWORD"
+
+      - name: Export Godot Android AAB
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: 1.${{ github.run_number }}
+          SKIP_DEBUG_APK: "1"
+          ADMOB_ADS_ENABLED: "true"
+          COZYFALL_ADMOB_ANDROID_APP_ID: ${{ secrets.COZYFALL_ADMOB_ANDROID_APP_ID }}
+          RELEASE_PACKAGE_NAME: ${{ env.PACKAGE_NAME }}
+          ARTIFACT_STEM: CozyFall
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: /home/runner/.android/release.keystore
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.KEY_ALIAS }}
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: ./scripts/ci/godot-export-android.sh
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CozyFall-aab-${{ github.run_number }}
+          path: builds/android/CozyFall.aab
+          retention-days: 14
+
+      - name: Upload to Play Store Internal track
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ env.PACKAGE_NAME }}
+          releaseFiles: builds/android/CozyFall.aab
+          tracks: internal
+          status: completed
+          whatsNewDirectory: store/listing/whatsnew

@@ -24,3 +24,19 @@ The supplied originals are retained byte-for-byte in `source_assets/generated/`.
 ```
 
 `tools/build_android.ps1` uses E:-based Gradle/cache locations. A debug signed APK is suitable for device validation; create and supply a release keystore before distribution.
+
+## Google Play
+
+Pushes to `main` build a signed AAB and upload it to the Play internal test
+track via `.github/workflows/deploy-android.yml`. The package is
+`com.holly.cozyfall`, `versionCode` is the Actions run number.
+
+Store listing copy and graphics live in `store/` and are regenerated with
+`python3 tools/generate_store_assets.py`. Release process, required secrets, and
+the Play Console steps that cannot be automated are in
+[`docs/play-store.md`](docs/play-store.md).
+
+The Android build serves a bottom banner through the Poing AdMob plugin using
+Google's official **test** ad unit; Ambient Mode hides it. See the
+`TODO(ads-live)` markers in `autoload/ad_bar_service.gd` and
+`scripts/ci/godot-export-android.sh` before going live.

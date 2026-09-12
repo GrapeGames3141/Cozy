@@ -1,0 +1,10 @@
+{
+  "_comment": "Closed test: Android serves Google's official test banner (ca-app-pub-3940256099942544/6300978111), never a production unit. CI regenerates config/admob.json (gitignored) from this shape. TODO(ads-live): set android_banner_unit_id to the real Cozy Fall unit and return it from AdBarService.banner_unit_id().",
+  "ads_enabled": true,
+  "android_ads_enabled": true,
+  "android_banner_unit_id": "ca-app-pub-3940256099942544/6300978111",
+  "child_directed": false,
+  "tag_for_under_age_of_consent": false,
+  "max_ad_content_rating": "G",
+  "banner_height_dp": 60
+}

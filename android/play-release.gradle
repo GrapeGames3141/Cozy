@@ -1,0 +1,18 @@
+// Applied onto Godot's generated android/build after the template is installed.
+// Enables R8 shrinking for Play releases and keeps native libs uncompressed
+// so 16 KB page-size devices can map libgodot.so.
+
+android {
+	buildTypes {
+		release {
+			minifyEnabled true
+			shrinkResources true
+			proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-godot-play.pro"
+		}
+	}
+	packagingOptions {
+		jniLibs {
+			useLegacyPackaging false
+		}
+	}
+}

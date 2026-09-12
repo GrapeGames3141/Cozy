@@ -1,8 +1,22 @@
 .godot/
 builds/
 .runtime_validation/
+
+# Godot Android export template (generated locally and in CI).
+# Commit only the Play overlay files and the version marker under android/.
 android/build/
-android/.build_version
+
+# Local AdMob runtime config (the example is committed; CI regenerates this).
+config/admob.json
+
+# Signing credentials and release keys — never commit.
 *.keystore
 *.jks
+export_credentials.cfg
+*service-account*.json
 secrets/
+
+# AdMob plugin binaries are downloaded by CI, not committed (~20 MB).
+addons/admob/android/bin/
+addons/admob/ios/bin/
+addons/admob/downloads/

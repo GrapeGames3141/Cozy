@@ -122,7 +122,7 @@ function Test-ReleaseEngineApk([string]$ApkPath, [string]$ReferenceDebugApk) {
   $badging = & $aapt2 dump badging $ApkPath 2>&1
   if ($LASTEXITCODE -ne 0) { throw 'aapt2 badging validation failed.' }
   $badgingText = $badging -join "`n"
-  foreach ($required in @("package: name='com.holly.cozyfall'", 'native-code:.*arm64-v8a.*armeabi-v7a', "uses-feature-not-required: name='android.software.leanback'", "uses-feature-not-required: name='android.hardware.touchscreen'")) {
+  foreach ($required in @("package: name='com.grapegames.cozyfall'", 'native-code:.*arm64-v8a.*armeabi-v7a', "uses-feature-not-required: name='android.software.leanback'", "uses-feature-not-required: name='android.hardware.touchscreen'")) {
     if ($badgingText -notmatch $required) { throw "APK badging missing required field: $required" }
   }
   $manifest = & $aapt2 dump xmltree $ApkPath --file AndroidManifest.xml 2>&1
@@ -160,10 +160,10 @@ function Install-And-CheckFireTv([string]$ApkPath) {
   if ($abi -ne 'armeabi-v7a') { throw "Expected Fire TV armeabi-v7a target, received: $abi" }
   & $adb -s $DeviceIp install -r $ApkPath | Out-Null
   if ($LASTEXITCODE -ne 0) { throw 'adb install -r failed.' }
-  & $adb -s $DeviceIp shell monkey -p com.holly.cozyfall 1 | Set-Content -LiteralPath (Join-Path $validationDir 'fire_tv_start.txt')
+  & $adb -s $DeviceIp shell monkey -p com.grapegames.cozyfall 1 | Set-Content -LiteralPath (Join-Path $validationDir 'fire_tv_start.txt')
   Start-Sleep -Seconds 15
   & $adb -s $DeviceIp shell dumpsys activity activities | Set-Content -LiteralPath (Join-Path $validationDir 'fire_tv_activity.txt')
-  & $adb -s $DeviceIp logcat -d -v threadtime -t 600 | Select-String -Pattern 'com.holly.cozyfall|GodotLib.setup|ANR|Application Not Responding|Fatal signal' | Set-Content -LiteralPath (Join-Path $validationDir 'fire_tv_relevant_logcat.txt')
+  & $adb -s $DeviceIp logcat -d -v threadtime -t 600 | Select-String -Pattern 'com.grapegames.cozyfall|GodotLib.setup|ANR|Application Not Responding|Fatal signal' | Set-Content -LiteralPath (Join-Path $validationDir 'fire_tv_relevant_logcat.txt')
   $shot = Join-Path $validationDir 'fire_tv_after_15s.png'
   $remoteShot = '/sdcard/Download/cozyfall_release_engine_capture.png'
   try {

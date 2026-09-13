@@ -58,7 +58,7 @@ function Get-TaskDescendants([int]$RootProcessId) {
 function Test-Apk([string]$Apk) {
   $aapt2 = Join-Path $sdk 'build-tools\36.1.0\aapt2.exe'; $signer = Join-Path $sdk 'build-tools\36.1.0\apksigner.bat'; $zipalign = Join-Path $sdk 'build-tools\36.1.0\zipalign.exe'
   $badging = (& $aapt2 dump badging $Apk) -join "`n"
-  foreach ($required in @("package: name='com.holly.cozyfall'", 'native-code:.*arm64-v8a.*armeabi-v7a', "uses-feature-not-required: name='android.software.leanback'", "uses-feature-not-required: name='android.hardware.touchscreen'")) { if ($badging -notmatch $required) { throw "APK validation missing: $required" } }
+  foreach ($required in @("package: name='com.grapegames.cozyfall'", 'native-code:.*arm64-v8a.*armeabi-v7a', "uses-feature-not-required: name='android.software.leanback'", "uses-feature-not-required: name='android.hardware.touchscreen'")) { if ($badging -notmatch $required) { throw "APK validation missing: $required" } }
   $manifest = (& $aapt2 dump xmltree $Apk --file AndroidManifest.xml) -join "`n"
   foreach ($required in @('android:banner','LEANBACK_LAUNCHER','android.intent.category.LAUNCHER','screenOrientation.*=0')) { if ($manifest -notmatch $required) { throw "APK manifest missing: $required" } }
   $verified = (& $signer verify --verbose --min-sdk-version 24 $Apk) -join "`n"; if ($verified -notmatch 'Verified using v2 scheme.*true') { throw 'APK v2 signing validation failed.' }
@@ -88,7 +88,7 @@ function Test-SigningIdentity([string]$Apk) {
 function Install-ValidatedApk([string]$Apk) {
   $adb = Join-Path $sdk 'platform-tools\adb.exe'
   & $adb connect $DeviceIp | Out-Null
-  $installedPaths = @(& $adb -s $DeviceIp shell pm path com.holly.cozyfall 2>&1)
+  $installedPaths = @(& $adb -s $DeviceIp shell pm path com.grapegames.cozyfall 2>&1)
   if ($LASTEXITCODE -eq 0 -and $installedPaths.Count -gt 0 -and ($installedPaths -join "`n") -match '(?m)^package:(.+\.apk)$') {
     $installedApk = Join-Path $validation 'installed_base.apk'
     Remove-Item -LiteralPath $installedApk -Force -ErrorAction SilentlyContinue
@@ -105,9 +105,9 @@ function Install-ValidatedApk([string]$Apk) {
 }
 function Check-Device([string]$Apk, [int]$Attempt) {
   $adb = Join-Path $sdk 'platform-tools\adb.exe'; & $adb connect $DeviceIp | Out-Null
-  & $adb -s $DeviceIp shell am force-stop com.holly.cozyfall
+  & $adb -s $DeviceIp shell am force-stop com.grapegames.cozyfall
   $launchUtc = (Get-Date).ToUniversalTime().ToString('o')
-  & $adb -s $DeviceIp shell monkey -p com.holly.cozyfall 1 | Out-Null
+  & $adb -s $DeviceIp shell monkey -p com.grapegames.cozyfall 1 | Out-Null
   Start-Sleep -Seconds 15
   $remote = "/sdcard/Download/cozyfall_463_$Attempt.png"; $shot = Join-Path $validation "cold_launch_$Attempt.png"
   try { & $adb -s $DeviceIp shell screencap -p $remote; & $adb -s $DeviceIp pull $remote $shot | Out-Null } finally { & $adb -s $DeviceIp shell rm -f $remote | Out-Null }
@@ -120,11 +120,11 @@ function Check-Device([string]$Apk, [int]$Attempt) {
   Add-Type -AssemblyName System.Drawing; $image = [Drawing.Bitmap]::FromFile($shot); $visible = $false
   try { for ($y=0; $y -lt $image.Height -and !$visible; $y+=64) { for ($x=0; $x -lt $image.Width; $x+=64) { $pixel=$image.GetPixel($x,$y); if (($pixel.R+$pixel.G+$pixel.B) -gt 18) { $visible=$true; break } } } } finally { $image.Dispose() }
   $log = Get-Content -Raw $logPath
-  if ($activity -notmatch '(?m)(mResumedActivity|mCurrentFocus).*com\.holly\.cozyfall') { throw "Fire TV cold launch $Attempt did not resume/focus Cozy Fall (profile chooser or another activity is foreground)." }
-  $appPid = ((& $adb -s $DeviceIp shell pidof com.holly.cozyfall) -join '').Trim()
-  $packageAnr = '(?is)(?:ANR|Application Not Responding).{0,300}com\.holly\.cozyfall|com\.holly\.cozyfall.{0,300}(?:ANR|Application Not Responding)'
+  if ($activity -notmatch '(?m)(mResumedActivity|mCurrentFocus).*com\.grapegames\.cozyfall') { throw "Fire TV cold launch $Attempt did not resume/focus Cozy Fall (profile chooser or another activity is foreground)." }
+  $appPid = ((& $adb -s $DeviceIp shell pidof com.grapegames.cozyfall) -join '').Trim()
+  $packageAnr = '(?is)(?:ANR|Application Not Responding).{0,300}com\.grapegames\.cozyfall|com\.grapegames\.cozyfall.{0,300}(?:ANR|Application Not Responding)'
   $godotAnr = '(?is)GodotLib\.setup.{0,300}(?:ANR|Application Not Responding)|(?:ANR|Application Not Responding).{0,300}GodotLib\.setup'
-  $fatalForApp = if ($appPid) { '(?is)Fatal signal.{0,300}(?:\b' + [Regex]::Escape($appPid) + '\b|com\.holly\.cozyfall)' } else { $false }
+  $fatalForApp = if ($appPid) { '(?is)Fatal signal.{0,300}(?:\b' + [Regex]::Escape($appPid) + '\b|com\.grapegames\.cozyfall)' } else { $false }
   if (!$visible -or $log -match $packageAnr -or $log -match $godotAnr -or ($fatalForApp -and $log -match $fatalForApp)) { throw "Fire TV cold launch $Attempt did not reach a rendered scene." }
 }
 

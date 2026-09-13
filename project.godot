@@ -10,7 +10,7 @@ config_version=5
 
 [android]
 
-package/unique_name="com.holly.cozyfall"
+package/unique_name="com.grapegames.cozyfall"
 orientation=0
 package/show_in_android_tv=true
 

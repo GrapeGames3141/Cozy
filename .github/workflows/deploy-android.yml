@@ -1,4 +1,4 @@
-name: Deploy Cozy Fall Android - Internal Test
+name: Deploy Cozy Fall Android - Closed Test
 
 on:
   push:
@@ -9,7 +9,10 @@ on:
 env:
   GODOT_VERSION: "4.7.1"
   GODOT_CHANNEL: stable
-  PACKAGE_NAME: com.holly.cozyfall
+  PACKAGE_NAME: com.grapegames.cozyfall
+  # Play track API name: 'alpha' is the default CLOSED testing track
+  # ('internal' = internal testing, 'beta' = open testing, or a custom track name).
+  PLAY_TRACK: alpha
 
 jobs:
   build-and-deploy:
@@ -151,12 +154,12 @@ jobs:
           path: builds/android/CozyFall.aab
           retention-days: 14
 
-      - name: Upload to Play Store Internal track
+      - name: Upload to Play Store closed track
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: ${{ env.PACKAGE_NAME }}
           releaseFiles: builds/android/CozyFall.aab
-          tracks: internal
+          tracks: ${{ env.PLAY_TRACK }}
           status: completed
           whatsNewDirectory: store/listing/whatsnew

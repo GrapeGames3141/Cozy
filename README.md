@@ -27,9 +27,9 @@ The supplied originals are retained byte-for-byte in `source_assets/generated/`.
 
 ## Google Play
 
-Pushes to `main` build a signed AAB and upload it to the Play internal test
-track via `.github/workflows/deploy-android.yml`. The package is
-`com.holly.cozyfall`, `versionCode` is the Actions run number.
+Pushes to `main` build a signed AAB and upload it to the Play **closed**
+testing track (`alpha`) via `.github/workflows/deploy-android.yml`. The package is
+`com.grapegames.cozyfall`, `versionCode` is the Actions run number.
 
 Store listing copy and graphics live in `store/` and are regenerated with
 `python3 tools/generate_store_assets.py`. Release process, required secrets, and

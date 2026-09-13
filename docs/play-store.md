@@ -3,9 +3,13 @@
 Cozy Fall ships to Play as an Android App Bundle built by
 [`.github/workflows/deploy-android.yml`](../.github/workflows/deploy-android.yml),
 which calls [`scripts/ci/godot-export-android.sh`](../scripts/ci/godot-export-android.sh)
-and uploads the result to the **internal** track.
+and uploads the result to the **closed testing** track (`alpha`).
 
-Package name: `com.holly.cozyfall` — this is permanent once the first bundle is
+To change track later, edit `PLAY_TRACK` at the top of the workflow. The API
+names are `internal`, `alpha` (closed), `beta` (open), `production`, or a custom
+track's own name — they do not always match the Play Console UI labels.
+
+Package name: `com.grapegames.cozyfall` — this is permanent once the first bundle is
 uploaded. `versionCode` is the GitHub Actions run number and `versionName` is
 `1.<run number>`, so every push to `main` produces a strictly increasing build.
 
@@ -28,10 +32,20 @@ update the app, unless Play App Signing holds the upload key.
 
 ## First upload is manual
 
-`r0adkll/upload-google-play` can only publish to an app that already exists.
-Before the first green run, create the app in Play Console, complete the listing
-from `store/` (below), and upload one AAB by hand — build it locally with the
-same script:
+**The API cannot perform an app's first upload.** A Play app has no package name
+until a bundle binds one, and the API addresses apps *by* package name — so
+until you upload one bundle by hand, every CI run fails with
+`Error: Package not found: com.grapegames.cozyfall`. That error means "no bundle
+has ever been uploaded", not "the package name is wrong".
+
+Whatever key signs that first upload becomes the permanent upload key, so it
+must be the real release keystore. Two ways to get a correctly signed bundle:
+
+1. **Easiest — take it from CI.** The *Upload AAB artifact* step runs *before*
+   the Play upload, so even a run that fails at the upload step still attaches a
+   properly signed `CozyFall-aab-<run>.zip`. Download it, drag the AAB into the
+   release in Play Console.
+2. **Build locally** with the real keystore:
 
 ```bash
 ANDROID_SDK_ROOT="$HOME/Android/Sdk" \
@@ -111,7 +125,14 @@ These are required before the app can leave draft, and none of them are things
 CI can set:
 
 - **Privacy policy URL.** Mandatory, because the app serves ads and the bundle
-  declares `AD_ID`.
+  declares `AD_ID`. Use the existing Grapegames policy:
+
+  `https://patguettler.github.io/privacy-policy.html`
+
+  It already covers Cozy Fall through its "any future apps under the same
+  developer account" clause, so no edit is strictly required — though adding
+  Cozy Fall to the named list (source: the `patguettler.github.io` repo) makes
+  the coverage obvious to a reviewer.
 - **Data safety form.** Declare what the AdMob SDK collects — at minimum the
   advertising ID, and device/app diagnostics.
 - **Ads declaration.** The app contains ads. Answer yes.
@@ -125,6 +146,10 @@ CI can set:
   Android TV form factor if you want the TV listing too.
 
 ## Ads
+
+AdMob publisher ID is `pub-2846735043546429`, already authorized by
+`app-ads.txt` at the root of `patguettler.github.io`. Cozy Fall's eventual live
+ad unit sits under that same publisher, so no `app-ads.txt` change is needed.
 
 The banner is Google's **official test unit**
 (`ca-app-pub-3940256099942544/6300978111`), wired in

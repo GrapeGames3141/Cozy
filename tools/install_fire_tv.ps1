@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $project = Split-Path $PSScriptRoot -Parent
 if ([string]::IsNullOrWhiteSpace($ApkPath)) { $ApkPath = Join-Path $project 'builds\CozyFall-debug.apk' }
 $adb = 'E:\CodexCache\godot-android-4.7.1\android-sdk\platform-tools\adb.exe'
-$package = 'com.holly.cozyfall'
+$package = 'com.grapegames.cozyfall'
 if (!(Test-Path $adb)) { throw "adb not found: $adb" }
 if ($ValidateOnly) {
   if (!(Test-Path (Join-Path $project 'export_presets.cfg'))) { throw 'Missing Android export preset.' }

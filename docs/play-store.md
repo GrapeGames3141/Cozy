@@ -30,22 +30,29 @@ Keep the keystore itself out of the repo — `.gitignore` refuses `*.keystore`,
 `*.jks`, and `*service-account*.json`. Losing it means losing the ability to
 update the app, unless Play App Signing holds the upload key.
 
-## First upload is manual
+## Draft app: the first release
 
-**The API cannot perform an app's first upload.** A Play app has no package name
-until a bundle binds one, and the API addresses apps *by* package name — so
-until you upload one bundle by hand, every CI run fails with
-`Error: Package not found: com.grapegames.cozyfall`. That error means "no bundle
-has ever been uploaded", not "the package name is wrong".
+A Play app that has never had a release rolled out is a *draft app*. The API
+refuses to create a live release on one:
 
-Whatever key signs that first upload becomes the permanent upload key, so it
-must be the real release keystore. Two ways to get a correctly signed bundle:
+```
+Only releases with status draft may be created on draft app.
+```
 
-1. **Easiest — take it from CI.** The *Upload AAB artifact* step runs *before*
-   the Play upload, so even a run that fails at the upload step still attaches a
-   properly signed `CozyFall-aab-<run>.zip`. Download it, drag the AAB into the
-   release in Play Console.
-2. **Build locally** with the real keystore:
+So `PLAY_RELEASE_STATUS` is `draft`. CI builds, signs, uploads the bundle and
+creates a **draft release** on the closed track; you then review and roll it out
+from the Console. Once one release has actually been rolled out, the app leaves
+draft state and you can set `PLAY_RELEASE_STATUS: completed` for hands-off
+rollout on every push.
+
+The upload itself needs no manual step — the API binds the package name on its
+first successful upload. If you see `Package not found: <package>`, the package
+in the workflow does not match the app in your Play account; it is not a
+sequencing problem.
+
+Whatever key signs the first uploaded bundle becomes the permanent upload key,
+so `ANDROID_KEYSTORE_BASE64` must hold the real release keystore before the
+first successful run. To build one locally instead:
 
 ```bash
 ANDROID_SDK_ROOT="$HOME/Android/Sdk" \
@@ -67,16 +74,9 @@ That is harmless — review and keep the change, or `git checkout project.godot`
 
 Note that `project.godot` deliberately carries **no** `[admob]` section. The
 AdMob editor plugin strips `general/android/app_id` whenever Godot loads the
-project, so committing it does not stick. Instead
-`set_project_android_app_id` in the export script writes the section
-immediately before each export, which is what produces the
-`com.google.android.gms.ads.APPLICATION_ID` manifest entry. Verify it landed by
-dumping the manifest of a built bundle rather than by reading `project.godot`:
-
-```bash
-java -jar bundletool.jar dump manifest --bundle=builds/android/CozyFall.aab \
-  | grep APPLICATION_ID
-```
+project, so committing it does not stick. Instead `set_project_android_app_id`
+in the export script writes the section immediately before each export, which is
+what produces the `com.google.android.gms.ads.APPLICATION_ID` manifest entry.
 
 ## What the build does
 

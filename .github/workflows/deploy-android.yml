@@ -13,6 +13,11 @@ env:
   # Play track API name: 'alpha' is the default CLOSED testing track
   # ('internal' = internal testing, 'beta' = open testing, or a custom track name).
   PLAY_TRACK: alpha
+  # A Play app that has never had a release rolled out is a "draft app", and the
+  # API will only create draft releases on it ("Only releases with status draft
+  # may be created on draft app"). After the first release is rolled out from the
+  # Console, switch this to 'completed' to have CI roll out automatically.
+  PLAY_RELEASE_STATUS: draft
 
 jobs:
   build-and-deploy:
@@ -161,5 +166,5 @@ jobs:
           packageName: ${{ env.PACKAGE_NAME }}
           releaseFiles: builds/android/CozyFall.aab
           tracks: ${{ env.PLAY_TRACK }}
-          status: completed
+          status: ${{ env.PLAY_RELEASE_STATUS }}
           whatsNewDirectory: store/listing/whatsnew
